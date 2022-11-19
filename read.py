@@ -4,7 +4,9 @@ import h5py
 from matplotlib import pyplot as plt              # matplotlib是常用于画图的包
 from tqdm import tqdm                             # tqdm可以显示进度条
 from sklearn.linear_model import LinearRegression # 这里利用了sklearn的线性拟合
-dataset_count = 19        # 常数尽可能不要硬编码出现在代码里
+from sklearn.preprocessing import PolynomialFeatures #利用sklearn的二次拟合
+import bisect
+dataset_count = 2        # 常数尽可能不要硬编码出现在代码里
 dataset_prefix = 'Training Set/'  # data文件的位置，我将训练集、测试集放在了data文件夹里
 def getCoef(index):
     
@@ -62,6 +64,7 @@ if __name__ == '__main__':
     
     #print(np.max(Event_pos_r))
     #print(np.max(Event_pos_r) - np.min(Event_pos_r.min))
+    '''
     lower_bound = np.min(Event_pos_r)
     
     interval = np.max(Event_pos_r) - np.min(Event_pos_r)
@@ -87,24 +90,32 @@ if __name__ == '__main__':
     ax[2].set_ylabel('Ek+2E0/MeV')
 
     #plt.show()                                   # 这样正常来说会弹出一个窗口显示画的图，如果没有请查询相关教程
+    '''
     # 先创建一个LinearRegression的Instance，注意这里不拟合截距。然后调用fit方法
     # 注意这个fit函数要求自变量是二维数组，因为一般情况下自变量可以有很多个。这里自变量只有1个，因此使用reshape函数强行变成二维。
      
-    N = 150
+    data = np.vstack((Event_pos_r, PE_total_train, Ek_train))
+    data = data.T[np.lexsort(data[::-1, :])].T 
     
-    coef_Ek = np.zeros(N)
-    intercept_Ek = np.zeros(N)
-    coef_Evis = np.zeros(N)
-    intercept_Evis = np.zeros(N)
+    Event_pos_r = data[0, :]
+    PE_total_train = data[1, :]
+    Ek_train = data[2, :]
     
-    for i in range(N):
-        Selected_pos = np.where((Scaled_Event_pos_r > (1 / N) * i) & (Scaled_Event_pos_r < (1 / N) * (i + 1)))
-        model_Ek = LinearRegression(fit_intercept=False).fit(PE_total_train[Selected_pos].reshape(-1,1), Ek_train[Selected_pos]+E_0*2)
-        model_Evis = LinearRegression(fit_intercept=False).fit(PE_total_train[Selected_pos].reshape(-1,1), Evis_train[Selected_pos])
-        coef_Ek[i] = model_Ek.coef_
-        intercept_Ek[i] = model_Ek.intercept_
-        coef_Evis[i] = model_Evis.coef_
-        intercept_Evis[i] = model_Evis.intercept_
+    N = 100
+    #每N个Event_pos_r取一个值，作为与问题比较的下标
+    Event_pos_r_label = np.zeros(int(event_total / N))
+    quadratic_coef = np.zeros((int(event_total/N), 3))
+    
+    for i in range(int(event_total / N)):
+        Event_pos_r_label[i] = Event_pos_r[i * N]
+        #线性拟合
+        #model_Ek = LinearRegression(fit_intercept=False).fit(PE_total_train[i * N : (i + 1) * N].reshape(-1,1), Ek_train[i * N : (i + 1) * N]+E_0*2)
+        quadratic_featurizer = PolynomialFeatures(degree=2)
+        X_train_quadratic = quadratic_featurizer.fit_transform(PE_total_train[i * N : (i + 1) * N].reshape(-1, 1))
+        regressor_quadratic = LinearRegression()
+        regressor_quadratic.fit(X_train_quadratic, Ek_train[i * N : (i + 1) * N])
+        #print(regressor_quadratic.coef_)
+        quadratic_coef[i] = regressor_quadratic.coef_
     
     problem_event_pos_x = np.zeros(10000)
     problem_event_pos_y = np.zeros(10000)
@@ -119,17 +130,18 @@ if __name__ == '__main__':
         problem_event_pos_z = problem_file['ParticleTruth']['z'][...]
         problem_event_pos_r = (problem_event_pos_x * problem_event_pos_x + problem_event_pos_y * problem_event_pos_y + problem_event_pos_z * problem_event_pos_z)**0.5
        
-    problem_Scaled_Event_pos_r = (problem_event_pos_r - lower_bound) / (interval)
+    #Aproblem_Scaled_Event_pos_r = (problem_event_pos_r - lower_bound) / (interval)
     
-    index = np.floor(problem_Scaled_Event_pos_r * N)
+    #index = np.floor(problem_Scaled_Event_pos_r * N)
     #index.astype(np.int32)
 
     Ek_problem = np.zeros(10000)
     Evis_problem = np.zeros(10000)
     
     for i in range(10000):
-        Ek_problem[i] = coef_Ek[int(index[i])] * PE_total_problem[i] + intercept_Ek[int(index[i])] - E_0*2
-        Evis_problem[i] = coef_Evis[int(index[i])] * PE_total_problem[i] + intercept_Evis[int(index[i])]
+        idx = bisect.bisect_left(Event_pos_r_label, problem_event_pos_r[i]) - 1
+        Ek_problem[i] = quadratic_coef[idx][0] * (PE_total_problem[i]**2) + quadratic_coef[idx][1] * (PE_total_problem[i]) +quadratic_coef[idx][2]
+        Evis_problem[i] = Ek_problem[i] + 2 * E_0
 
     ans_dtype = np.dtype([
         ('EventID', '<i4'),
