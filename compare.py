@@ -67,5 +67,6 @@ if __name__ == '__main__':
     
     plt.scatter(Event_pos_r, dif, s=4)
     plt.show()                                   # 这样正常来说会弹出一个窗口显示画的图，如果没有请查询相关教程
+    print(sum(dif * dif))
     # 先创建一个LinearRegression的Instance，注意这里不拟合截距。然后调用fit方法
     # 注意这个fit函数要求自变量是二维数组，因为一般情况下自变量可以有很多个。这里自变量只有1个，因此使用reshape函数强行变成二维。
