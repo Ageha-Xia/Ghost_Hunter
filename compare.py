@@ -19,8 +19,8 @@ if __name__ == '__main__':
     Event_pos_r = np.zeros(event_total)
     Event_theta = np.zeros(event_total)
     Event_phi = np.zeros(event_total)
-    detector_theta= np.zeros(event_total)
-    detector_phi = np.zeros(event_total)
+    #detector_theta= np.zeros(event_total)
+    #detector_phi = np.zeros(event_total)
     
     my_Ek_train = np.zeros(event_total)
     
@@ -42,8 +42,8 @@ if __name__ == '__main__':
         _, PE_total = np.unique(EventIDs, return_counts=True) 
         E_0 = 0.511 # 电子的静能
         Event_pos_r = (Event_pos_x * Event_pos_x + Event_pos_y * Event_pos_y + Event_pos_z * Event_pos_z)**0.5
-        Event_phi = math.atan(Event_pos_y / Event_pos_x) / math.pi * 180
-        Event_theta = math.asin(Event_pos_z / Event_pos_r) / math.pi * 180
+        #Event_phi = math.atan(Event_pos_y / Event_pos_x) / math.pi * 180
+        #Event_theta = math.asin(Event_pos_z / Event_pos_r) / math.pi * 180
     
     with h5py.File('519_my.h5', 'r') as data_file:
         # 这句话表示为Ek_train从下标event_index[data_id]到event_index[data_id+1]赋值
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     plt.rcParams['figure.figsize'] = (15.0, 5.0) # 设置一下图片的大小（全局设置），这个不是唯一的方法
     
     #条件筛选
-    Selected_pos = np.where((Scaled_Event_pos_r > 0.98) | (Scaled_Event_pos_r < 0.02))
+    #Selected_pos = np.where((Scaled_Event_pos_r > 0.98) | (Scaled_Event_pos_r < 0.02))
     #Selected_PE_total_train = PE_total_train[Selected_pos]
     
     plt.scatter(Event_pos_r, dif, s=4)
